@@ -4,7 +4,10 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
 using System.Windows;
+using OtpNet;
 using PassWinmenu.Configuration;
 using PassWinmenu.ExternalPrograms;
 using PassWinmenu.ExternalPrograms.Gpg;
@@ -168,6 +171,80 @@ namespace PassWinmenu.Windows
 				if (usernameEntered) KeyboardEmulator.EnterTab();
 
 				KeyboardEmulator.EnterText(passFile.Password);
+			}
+		}
+
+		/// <summary>
+		/// Asks the user to choose a password file, decrypts it,
+		/// generates an OTP code from the secret in the totp field, and copies the resulting value to the clipboard.
+		/// </summary>
+		public void GenerateTotpCode(bool copyToClipboard, bool typeTotpCode)
+		{
+			var selectedFile = RequestPasswordFile();
+			// If the user cancels their selection, the password decryption should be cancelled too.
+			if (selectedFile == null) return;
+
+			KeyedPasswordFile passFile;
+			try
+			{
+				passFile = passwordManager.DecryptPassword(selectedFile, true);
+			}
+			catch (Exception e) when (e is GpgError || e is GpgException || e is ConfigurationException)
+			{
+				notificationService.ShowErrorWindow("TOTP decryption failed: " + e.Message);
+				return;
+			}
+			catch (Exception e)
+			{
+				notificationService.ShowErrorWindow($"TOTP decryption failed: An error occurred: {e.GetType().Name}: {e.Message}");
+				return;
+			}
+
+			String secretKey = null;
+
+			foreach (var k in passFile.Keys)
+			{
+				// totp: Xxxx4
+				if (k.Key == "totp")
+				{
+					secretKey = k.Value;
+				}
+
+				// otpauth: //totp/account?secret=FxxxX&digits=6
+				if (k.Key == "otpauth")
+				{
+					var regex = new Regex("secret=([a-zA-Z0-9]+)&", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+					var matches = regex.Match(k.Value);
+					if (matches.Success) {
+						secretKey = matches.Groups[1].Value;
+					}
+				}
+			}
+
+			var foo = String.Join(",", passFile.Keys.Select(f => f.Key));
+
+			if (secretKey == null)
+			{
+				notificationService.ShowErrorWindow($"TOTP decryption failed: Failed to find an OTP secret. Keys = ${foo}");
+				return;
+			}
+
+			var secretKeyBytes = Base32Encoding.ToBytes(secretKey);
+			var totp = new Totp(secretKeyBytes);
+			var totpCode = totp.ComputeTotp();
+
+			if (copyToClipboard)
+			{
+				ClipboardHelper.Place(totpCode, TimeSpan.FromSeconds(ConfigManager.Config.Interface.ClipboardTimeout));
+				if (ConfigManager.Config.Notifications.Types.TotpCopied)
+				{
+					notificationService.Raise($"The totp code has been copied to your clipboard.\nIt will be cleared in {ConfigManager.Config.Interface.ClipboardTimeout:0.##} seconds.", Severity.Info);
+				}
+			}
+
+			if (typeTotpCode)
+			{
+				KeyboardEmulator.EnterText(totpCode, ConfigManager.Config.Output.DeadKeys);
 			}
 		}
 

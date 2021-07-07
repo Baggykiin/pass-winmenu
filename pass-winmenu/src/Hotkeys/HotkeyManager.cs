@@ -66,6 +66,9 @@ namespace PassWinmenu.Hotkeys
 						case HotkeyAction.DecryptPassword:
 							AddHotKey(keys, () => actionDispatcher.DecryptPassword(hotkey.Options.CopyToClipboard, hotkey.Options.TypeUsername, hotkey.Options.TypePassword));
 							break;
+						case HotkeyAction.GenerateTotpCode:
+							AddHotKey(keys, () => actionDispatcher.GenerateTotpCode(hotkey.Options.CopyToClipboard, hotkey.Options.TypeTotpCode));
+							break;
 						case HotkeyAction.PasswordField:
 							AddHotKey(keys, () => actionDispatcher.DecryptPasswordField(hotkey.Options.CopyToClipboard, hotkey.Options.Type, hotkey.Options.FieldName));
 							break;
@@ -93,7 +96,6 @@ namespace PassWinmenu.Hotkeys
 				{
 					throw new HotkeyException($"The hotkey \"{hotkey.Hotkey}\" is already registered by another application.");
 				}
-
 			}
 		}
 	}

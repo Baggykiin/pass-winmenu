@@ -76,6 +76,7 @@ namespace PassWinmenu.WinApi
 			menu.Items.Add(downloadSeparator);
 
 			menu.Items.Add("Decrypt Password", null, (sender, args) => actionDispatcher.DecryptPassword(true, false, false));
+			menu.Items.Add("Generate TOTP Code", null, (sender, args) => actionDispatcher.GenerateTotpCode(true, false));
 			menu.Items.Add("Add new Password", null, (sender, args) => actionDispatcher.AddPassword());
 			menu.Items.Add("Edit Password File", null, (sender, args) => actionDispatcher.EditPassword());
 			menu.Items.Add(new ToolStripSeparator());
